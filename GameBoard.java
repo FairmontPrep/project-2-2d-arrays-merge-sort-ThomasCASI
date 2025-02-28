@@ -1,86 +1,157 @@
 import javax.swing.*;
 import java.awt.*;
+import java.util.Random;
 
 public class GameBoard extends JFrame {
     private static final int SIZE = 8;
-    private JPanel[][] squares = new JPanel[SIZE][SIZE];
-    private ImageIcon exampleIcon;
-    public String[][] piecesArray;
-
+    private final JPanel[][] squares = new JPanel[SIZE][SIZE];
+    private final String[][] unsortedArray;
+    private final String[][] sortedArray;
+    private boolean showingSorted = false;
+    private final JButton toggleButton;
 
     public GameBoard() {
         setTitle("Chess Board");
-        setSize(600, 600);
+        setSize(600, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new GridLayout(SIZE, SIZE));
+        setLocationRelativeTo(null);
+        setLayout(null);
 
-       
+        // Each row: [ "HP:xxx", unusedOrEmpty ]
+        // We only need HP for sorting + color generation.
+        unsortedArray = new String[SIZE * SIZE][2];
+        fillUnsortedArray(unsortedArray);
 
-        // create your 2d Array to store your image variables and assign positions
-        // add your code here
-        // this line of code initializes a new 2D Array of Strings the size of 1 row and 2 columns
-        // your 2D array must be a minimum of 6 rows x 2 columns
-        // you may add a row for every image if you'd like to have every square be a different color/image
+        sortedArray = copyArray(unsortedArray);
+        mergeSort(sortedArray, 0, sortedArray.length - 1);
 
-        piecesArray = new String[1][2];
-        piecesArray[0][0]= "temp2.png";
-        piecesArray[0][1]= "HP:200";
+        JPanel boardPanel = new JPanel(new GridLayout(SIZE, SIZE));
+        boardPanel.setBounds(0, 0, 600, 600);
+        add(boardPanel);
 
-        //print the contents of your 2D array
-        //this is a requirement to show your 2D array is not sorted at the beginning of your program
-
-        for (int i = 0; i < piecesArray.length; i++) {
-            for (int j = 0; j < piecesArray[i].length; j++) {
-                System.out.println("piecesArray[" + i + "][" + j + "] = " + piecesArray[i][j]);
-            }
-        }
-
-        exampleIcon = new ImageIcon(piecesArray[0][0]); // Load image file
-
-        initializeBoard();
-    }
-
-    private void initializeBoard() {
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 squares[row][col] = new JPanel(new BorderLayout());
+                boardPanel.add(squares[row][col]);
+            }
+        }
 
-                // creates the checkered pattern with the two colors
-                // you can add more colors or take away any you'd like
-                
-                if (row >= 2 && row <= 5) {
-                    squares[row][col].setBackground(new Color(139, 69, 19)); // brown
-                } else if ((row + col) % 2 == 0) {
-                    squares[row][col].setBackground(new Color(55, 255, 55)); //dark green
+        toggleButton = new JButton("Show Sorted");
+        toggleButton.setBounds(200, 600, 200, 40);
+        toggleButton.addActionListener(e -> {
+            showingSorted = !showingSorted;
+            if (showingSorted) {
+                toggleButton.setText("Show Unsorted");
+                updateBoard(sortedArray);
+            } else {
+                toggleButton.setText("Show Sorted");
+                updateBoard(unsortedArray);
+            }
+        });
+        add(toggleButton);
+
+        updateBoard(unsortedArray);
+    }
+
+    private void fillUnsortedArray(String[][] array) {
+        Random rand = new Random();
+        for (int i = 0; i < array.length; i++) {
+            int randomHP = rand.nextInt(500) + 1;
+            array[i][0] = "HP:" + randomHP;
+            array[i][1] = ""; // unused
+        }
+    }
+
+    // Generate a color based on HP, e.g., range from green (low HP) to red (high HP)
+    private Color generateColorFromHP(int hp) {
+        // hp ranges from 1 to 500. We map that to 0..255 for red, 255..0 for green, etc.
+        // Example: shift from green to red
+        int red = (int) (255 * (hp / 500.0));
+        int green = (int) (255 * (1 - hp / 500.0));
+        return new Color(red, green, 0);
+    }
+
+    private void updateBoard(String[][] data) {
+        int index = 0;
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                squares[row][col].removeAll();
+                if (index < data.length) {
+                    int hp = parseHPValue(data[index][0]);
+                    squares[row][col].setBackground(generateColorFromHP(hp));
+                    JLabel textLabel = new JLabel(data[index][0], SwingConstants.CENTER);
+                    squares[row][col].add(textLabel, BorderLayout.CENTER);
                 } else {
-                    squares[row][col].setBackground(new Color(200, 255, 200)); //lighter green
+                    squares[row][col].setBackground(Color.LIGHT_GRAY);
                 }
-
-
-                // this is where your sorting method will be called 
-                // you will use the column 2 values to arrange your images to the board
-                // be sure to sort them before you add them onto the board 
-                // you will use a loop to add to your 2D Array, below is an example of how to add ONE image to ONE square
-                
-                // Adding an image to specific positions (e.g., first row)
-                if (row == 0 && col==0) {
-                    Image scaledImage = exampleIcon.getImage().getScaledInstance(60, 60, Image.SCALE_SMOOTH);
-                    JLabel pieceLabel = new JLabel(new ImageIcon(scaledImage));
-                    JLabel textLabel = new JLabel(piecesArray[0][1], SwingConstants.CENTER);
-                    squares[row][col].add(pieceLabel, BorderLayout.CENTER);
-                    squares[row][col].add(textLabel, BorderLayout.SOUTH);
-                }
-
-                
-                add(squares[row][col]);
+                squares[row][col].revalidate();
+                squares[row][col].repaint();
+                index++;
             }
         }
     }
 
+    private String[][] copyArray(String[][] original) {
+        String[][] copy = new String[original.length][2];
+        for (int i = 0; i < original.length; i++) {
+            copy[i][0] = original[i][0];
+            copy[i][1] = original[i][1];
+        }
+        return copy;
+    }
 
-    // add your merge sort method here
-    // add a comment to every line of code that describes what the line is accomplishing
-    // your mergeSort method does not have to return any value
+    private void mergeSort(String[][] arr, int left, int right) {
+        if (left < right) {
+            int mid = (left + right) / 2;
+            mergeSort(arr, left, mid);
+            mergeSort(arr, mid + 1, right);
+            merge(arr, left, mid, right);
+        }
+    }
+
+    private void merge(String[][] arr, int left, int mid, int right) {
+        int n1 = mid - left + 1;
+        int n2 = right - mid;
+        String[][] leftArray = new String[n1][2];
+        String[][] rightArray = new String[n2][2];
+        for (int i = 0; i < n1; i++) {
+            leftArray[i][0] = arr[left + i][0];
+            leftArray[i][1] = arr[left + i][1];
+        }
+        for (int j = 0; j < n2; j++) {
+            rightArray[j][0] = arr[mid + 1 + j][0];
+            rightArray[j][1] = arr[mid + 1 + j][1];
+        }
+        int i = 0, j = 0, k = left;
+        while (i < n1 && j < n2) {
+            if (parseHPValue(leftArray[i][0]) <= parseHPValue(rightArray[j][0])) {
+                arr[k][0] = leftArray[i][0];
+                arr[k][1] = leftArray[i][1];
+                i++;
+            } else {
+                arr[k][0] = rightArray[j][0];
+                arr[k][1] = rightArray[j][1];
+                j++;
+            }
+            k++;
+        }
+        while (i < n1) {
+            arr[k][0] = leftArray[i][0];
+            arr[k][1] = leftArray[i][1];
+            i++;
+            k++;
+        }
+        while (j < n2) {
+            arr[k][0] = rightArray[j][0];
+            arr[k][1] = rightArray[j][1];
+            j++;
+            k++;
+        }
+    }
+
+    private int parseHPValue(String hpString) {
+        return Integer.parseInt(hpString.replace("HP:", ""));
+    }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
